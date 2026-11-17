@@ -1,0 +1,1305 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+        
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/multi-style-layer.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
+        <script src="data/Injury_Severity_Crashes_4.js"></script>
+        <script src="data/Blackspot_5.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[22.97777632217722,71.89606636181878],[23.91296208847707,73.86472734200045]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    var img = popup._contentNode.querySelector('td img');
+                    if (img) {
+                        // If already loaded (cache), update immediately
+                        if (img.complete && img.naturalHeight > 0) {
+                            popup.update();
+                        } else {
+                            img.addEventListener('load', function() {
+                                popup.update();
+                            });
+                            img.addEventListener('error', function() {
+                                popup.update();
+                            });
+                        }
+                    }
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_GoogleSatellite_0');
+        map.getPane('pane_GoogleSatellite_0').style.zIndex = 400;
+        var layer_GoogleSatellite_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleSatellite_0;
+        map.createPane('pane_ESRISatellite_1');
+        map.getPane('pane_ESRISatellite_1').style.zIndex = 401;
+        var layer_ESRISatellite_1 = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            pane: 'pane_ESRISatellite_1',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_ESRISatellite_1;
+        map.createPane('pane_GoogleRoad_2');
+        map.getPane('pane_GoogleRoad_2').style.zIndex = 402;
+        var layer_GoogleRoad_2 = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleRoad_2',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleRoad_2;
+        map.addLayer(layer_GoogleRoad_2);
+        map.createPane('pane_Heatmap_3');
+        map.getPane('pane_Heatmap_3').style.zIndex = 403;
+        var img_Heatmap_3 = 'data/Heatmap_3.png';
+        var img_bounds_Heatmap_3 = [[20.219258013107005,72.5702493892765],[23.75850492351012,73.48354067202278]];
+        var layer_Heatmap_3 = new L.imageOverlay(img_Heatmap_3,
+                                              img_bounds_Heatmap_3,
+                                              {pane: 'pane_Heatmap_3'});
+        bounds_group.addLayer(layer_Heatmap_3);
+        function pop_Injury_Severity_Crashes_4(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Injury Severity</th>\
+                        <td class="visible-with-data" id="C_Severity_Overall">' + (feature.properties['C_Severity_Overall'] !== null ? autolinker.link(String(feature.properties['C_Severity_Overall']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">C_Collision_Type</th>\
+                        <td class="visible-with-data" id="C_Collision_Type">' + (feature.properties['C_Collision_Type'] !== null ? autolinker.link(String(feature.properties['C_Collision_Type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Collision Mechanism</th>\
+                        <td class="visible-with-data" id="C_Collision_Nature">' + (feature.properties['C_Collision_Nature'] !== null ? autolinker.link(String(feature.properties['C_Collision_Nature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">C_Weather_Condition</th>\
+                        <td class="visible-with-data" id="C_Weather_Condition">' + (feature.properties['C_Weather_Condition'] !== null ? autolinker.link(String(feature.properties['C_Weather_Condition']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">C_Light_Condition</th>\
+                        <td class="visible-with-data" id="C_Light_Condition">' + (feature.properties['C_Light_Condition'] !== null ? autolinker.link(String(feature.properties['C_Light_Condition']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">C_Number_of_Persons_Involved</th>\
+                        <td class="visible-with-data" id="C_Number_of_Persons_Involved">' + (feature.properties['C_Number_of_Persons_Involved'] !== null ? autolinker.link(String(feature.properties['C_Number_of_Persons_Involved']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Injury_Severity_Crashes_4_0(feature) {
+            switch(String(feature.properties['C_Severity_Overall'])) {
+                case 'Fatal':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(103,0,13,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Grievous Injury':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,32,32,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Minor Injury � Hospitalized':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(251,112,80,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Minor Injury � Not Hospitalized':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(252,190,165,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'No Injury':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,245,240,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        function style_Injury_Severity_Crashes_4_1(feature) {
+            switch(String(feature.properties['C_Severity_Overall'])) {
+                case 'Fatal':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(103,0,13,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Grievous Injury':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,32,32,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Minor Injury � Hospitalized':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(251,112,80,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Minor Injury � Not Hospitalized':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(252,190,165,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'No Injury':
+                    return {
+                pane: 'pane_Injury_Severity_Crashes_4',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,245,240,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_Injury_Severity_Crashes_4');
+        map.getPane('pane_Injury_Severity_Crashes_4').style.zIndex = 404;
+        map.getPane('pane_Injury_Severity_Crashes_4').style['mix-blend-mode'] = 'normal';
+        var layer_Injury_Severity_Crashes_4 = new L.geoJson.multiStyle(json_Injury_Severity_Crashes_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Injury_Severity_Crashes_4',
+            layerName: 'layer_Injury_Severity_Crashes_4',
+            pane: 'pane_Injury_Severity_Crashes_4',
+            onEachFeature: pop_Injury_Severity_Crashes_4,
+            pointToLayers: [function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_Injury_Severity_Crashes_4_0(feature));
+            },function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_Injury_Severity_Crashes_4_1(feature));
+            },
+        ]});
+        bounds_group.addLayer(layer_Injury_Severity_Crashes_4);
+        function pop_Blackspot_5(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">C_Severity_Overall</th>\
+                        <td class="visible-with-data" id="C_Severity_Overall">' + (feature.properties['C_Severity_Overall'] !== null ? autolinker.link(String(feature.properties['C_Severity_Overall']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">District Jurisdiction</th>\
+                        <td class="visible-with-data" id="C_District">' + (feature.properties['C_District'] !== null ? autolinker.link(String(feature.properties['C_District']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Dominant Collision Type</th>\
+                        <td class="visible-with-data" id="C_Collision_Nature">' + (feature.properties['C_Collision_Nature'] !== null ? autolinker.link(String(feature.properties['C_Collision_Nature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Blackspot ID</th>\
+                        <td class="visible-with-data" id="CLUSTER_ID">' + (feature.properties['CLUSTER_ID'] !== null ? autolinker.link(String(feature.properties['CLUSTER_ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Total Severe Crashes (500m)</th>\
+                        <td class="visible-with-data" id="CLUSTER_SIZE">' + (feature.properties['CLUSTER_SIZE'] !== null ? autolinker.link(String(feature.properties['CLUSTER_SIZE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Blackspot_5_0() {
+            return {
+                pane: 'pane_Blackspot_5',
+                radius: 3.6,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(202,0,32,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Blackspot_5');
+        map.getPane('pane_Blackspot_5').style.zIndex = 405;
+        map.getPane('pane_Blackspot_5').style['mix-blend-mode'] = 'normal';
+        var layer_Blackspot_5 = new L.geoJson(json_Blackspot_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Blackspot_5',
+            layerName: 'layer_Blackspot_5',
+            pane: 'pane_Blackspot_5',
+            onEachFeature: pop_Blackspot_5,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_Blackspot_5_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_Blackspot_5);
+        var overlaysTree = [
+            {label: '<img src="legend/Blackspot_5.png" /> Blackspot', layer: layer_Blackspot_5},
+            {label: 'Injury_Severity_Crashes<br /><table><tr><td style="text-align: center;"><img src="legend/Injury_Severity_Crashes_4_Fatal0.png" /></td><td>Fatal</td></tr><tr><td style="text-align: center;"><img src="legend/Injury_Severity_Crashes_4_GrievousInjury1.png" /></td><td>Grievous Injury</td></tr><tr><td style="text-align: center;"><img src="legend/Injury_Severity_Crashes_4_MinorInjuryHospitalized2.png" /></td><td>Minor Injury � Hospitalized</td></tr><tr><td style="text-align: center;"><img src="legend/Injury_Severity_Crashes_4_MinorInjuryNotHospitalized3.png" /></td><td>Minor Injury � Not Hospitalized</td></tr><tr><td style="text-align: center;"><img src="legend/Injury_Severity_Crashes_4_NoInjury4.png" /></td><td>No Injury</td></tr></table>', layer: layer_Injury_Severity_Crashes_4},
+            {label: " Heatmap", layer: layer_Heatmap_3},
+            {label: "Google Road", layer: layer_GoogleRoad_2},
+            {label: "ESRI Satellite", layer: layer_ESRISatellite_1},
+            {label: "Google Satellite", layer: layer_GoogleSatellite_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: false, 
+        });
+        lay.addTo(map);
+		document.addEventListener("DOMContentLoaded", function() {
+            // set new Layers List height which considers toggle icon
+            function newLayersListHeight() {
+                var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (layerScrollbarElement) {
+                    var layersListElement = document.querySelector('.leaflet-control-layers-list');
+                    var originalHeight = layersListElement.style.height 
+                        || window.getComputedStyle(layersListElement).height;
+                    var newHeight = parseFloat(originalHeight) - 50;
+                    layersListElement.style.height = newHeight + 'px';
+                }
+            }
+            var isLayersListExpanded = true;
+            var controlLayersElement = document.querySelector('.leaflet-control-layers');
+            var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+            // toggle Collapsed/Expanded and apply new Layers List height
+            toggleLayerControl.addEventListener('click', function() {
+                if (isLayersListExpanded) {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlLayersElement.classList.add('leaflet-control-layers-expanded');
+                }
+                isLayersListExpanded = !isLayersListExpanded;
+                newLayersListHeight()
+            });	
+			// apply new Layers List height if toggle layerstree
+			if (controlLayersElement) {
+				controlLayersElement.addEventListener('click', function(event) {
+					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+					if (toggleLayerHeaderPointer) {
+						newLayersListHeight();
+					}
+				});
+			}
+            // Collapsed/Expanded at Start to apply new height
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            // Collapsed touch/small screen
+            var isSmallScreen = window.innerWidth < 650;
+            if (isSmallScreen) {
+                setTimeout(function() {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                    isLayersListExpanded = !isLayersListExpanded;
+                }, 500);
+            }  
+        });       
+        setBounds();
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"C_Collision_Nature": "str","C_Severity_Overall": "str","C_Collision_Type": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_C_Collision_Nature = document.createElement('div');
+            div_C_Collision_Nature.id = "div_C_Collision_Nature";
+            div_C_Collision_Nature.className= "filterselect";
+            document.getElementById("menu").appendChild(div_C_Collision_Nature);
+            sel_C_Collision_Nature = document.createElement('select');
+            sel_C_Collision_Nature.multiple = true;
+            sel_C_Collision_Nature.size = 8;
+            sel_C_Collision_Nature.id = "sel_C_Collision_Nature";
+            var C_Collision_Nature_options_str = "<option value='' unselected></option>";
+            sel_C_Collision_Nature.onchange = function(){filterFunc()};
+            C_Collision_Nature_options_str  += '<option value="Head-on Collision">Head-on Collision</option>';
+            C_Collision_Nature_options_str  += '<option value="NaN">NaN</option>';
+            C_Collision_Nature_options_str  += '<option value="No Collision">No Collision</option>';
+            C_Collision_Nature_options_str  += '<option value="Overturn/Skid">Overturn/Skid</option>';
+            C_Collision_Nature_options_str  += '<option value="Parked/Stationary Collision">Parked/Stationary Collision</option>';
+            C_Collision_Nature_options_str  += '<option value="Rear-end Collision">Rear-end Collision</option>';
+            C_Collision_Nature_options_str  += '<option value="Run-off-road / Fall / Landslide">Run-off-road / Fall / Landslide</option>';
+            C_Collision_Nature_options_str  += '<option value="Sideswipe/Hit From side">Sideswipe/Hit From side</option>';
+            sel_C_Collision_Nature.innerHTML = C_Collision_Nature_options_str;
+            div_C_Collision_Nature.appendChild(sel_C_Collision_Nature);
+            var lab_C_Collision_Nature = document.createElement('div');
+            lab_C_Collision_Nature.innerHTML = 'C_Collision_Nature';
+            lab_C_Collision_Nature.className = 'filterlabel';
+            div_C_Collision_Nature.appendChild(lab_C_Collision_Nature);
+            var reset_C_Collision_Nature = document.createElement('div');
+            reset_C_Collision_Nature.innerHTML = 'clear filter';
+            reset_C_Collision_Nature.className = 'filterlabel';
+            reset_C_Collision_Nature.onclick = function() {
+                var options = document.getElementById("sel_C_Collision_Nature").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_C_Collision_Nature.appendChild(reset_C_Collision_Nature);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_C_Severity_Overall = document.createElement('div');
+            div_C_Severity_Overall.id = "div_C_Severity_Overall";
+            div_C_Severity_Overall.className= "filterselect";
+            document.getElementById("menu").appendChild(div_C_Severity_Overall);
+            sel_C_Severity_Overall = document.createElement('select');
+            sel_C_Severity_Overall.multiple = true;
+            sel_C_Severity_Overall.size = 5;
+            sel_C_Severity_Overall.id = "sel_C_Severity_Overall";
+            var C_Severity_Overall_options_str = "<option value='' unselected></option>";
+            sel_C_Severity_Overall.onchange = function(){filterFunc()};
+            C_Severity_Overall_options_str  += '<option value="Fatal">Fatal</option>';
+            C_Severity_Overall_options_str  += '<option value="Grievous Injury">Grievous Injury</option>';
+            C_Severity_Overall_options_str  += '<option value="Minor Injury � Hospitalized">Minor Injury � Hospitalized</option>';
+            C_Severity_Overall_options_str  += '<option value="Minor Injury � Not Hospitalized">Minor Injury � Not Hospitalized</option>';
+            C_Severity_Overall_options_str  += '<option value="No Injury">No Injury</option>';
+            sel_C_Severity_Overall.innerHTML = C_Severity_Overall_options_str;
+            div_C_Severity_Overall.appendChild(sel_C_Severity_Overall);
+            var lab_C_Severity_Overall = document.createElement('div');
+            lab_C_Severity_Overall.innerHTML = 'C_Severity_Overall';
+            lab_C_Severity_Overall.className = 'filterlabel';
+            div_C_Severity_Overall.appendChild(lab_C_Severity_Overall);
+            var reset_C_Severity_Overall = document.createElement('div');
+            reset_C_Severity_Overall.innerHTML = 'clear filter';
+            reset_C_Severity_Overall.className = 'filterlabel';
+            reset_C_Severity_Overall.onclick = function() {
+                var options = document.getElementById("sel_C_Severity_Overall").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_C_Severity_Overall.appendChild(reset_C_Severity_Overall);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_C_Collision_Type = document.createElement('div');
+            div_C_Collision_Type.id = "div_C_Collision_Type";
+            div_C_Collision_Type.className= "filterselect";
+            document.getElementById("menu").appendChild(div_C_Collision_Type);
+            sel_C_Collision_Type = document.createElement('select');
+            sel_C_Collision_Type.multiple = true;
+            sel_C_Collision_Type.size = 8;
+            sel_C_Collision_Type.id = "sel_C_Collision_Type";
+            var C_Collision_Type_options_str = "<option value='' unselected></option>";
+            sel_C_Collision_Type.onchange = function(){filterFunc()};
+            C_Collision_Type_options_str  += '<option value="Fallen down while Boarding / Alighting">Fallen down while Boarding / Alighting</option>';
+            C_Collision_Type_options_str  += '<option value="No Collision">No Collision</option>';
+            C_Collision_Type_options_str  += '<option value="Vehicle to Animal">Vehicle to Animal</option>';
+            C_Collision_Type_options_str  += '<option value="Vehicle to Bicycle">Vehicle to Bicycle</option>';
+            C_Collision_Type_options_str  += '<option value="Vehicle to Object / Property">Vehicle to Object / Property</option>';
+            C_Collision_Type_options_str  += '<option value="Vehicle to Pedestrian">Vehicle to Pedestrian</option>';
+            C_Collision_Type_options_str  += '<option value="Vehicle to Tricycle">Vehicle to Tricycle</option>';
+            C_Collision_Type_options_str  += '<option value="Vehicle to Vehicle">Vehicle to Vehicle</option>';
+            sel_C_Collision_Type.innerHTML = C_Collision_Type_options_str;
+            div_C_Collision_Type.appendChild(sel_C_Collision_Type);
+            var lab_C_Collision_Type = document.createElement('div');
+            lab_C_Collision_Type.innerHTML = 'C_Collision_Type';
+            lab_C_Collision_Type.className = 'filterlabel';
+            div_C_Collision_Type.appendChild(lab_C_Collision_Type);
+            var reset_C_Collision_Type = document.createElement('div');
+            reset_C_Collision_Type.innerHTML = 'clear filter';
+            reset_C_Collision_Type.className = 'filterlabel';
+            reset_C_Collision_Type.onclick = function() {
+                var options = document.getElementById("sel_C_Collision_Type").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_C_Collision_Type.appendChild(reset_C_Collision_Type);
+        L.ImageOverlay.include({
+            getBounds: function () {
+                return this._bounds;
+            }
+        });
+        </script> 
+        <!-- Chart.js CDN for Live Analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<style>
+  /* 1. Reset & Full-Viewport Dark Layout */
+  html, body {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
+    color: #f8fafc !important;
+  }
+
+  /* Hide qgis2web's default layer switcher (replaced by our cleaner custom panel) */
+  .leaflet-control-layers { display: none !important; }
+
+  /* 2. Top KPI Header Ribbon */
+  #nh48-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 62px;
+    z-index: 3000;
+    background: rgba(15, 23, 42, 0.96);
+    border-bottom: 1px solid #334155;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    gap: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .brand-group { display: flex; align-items: center; gap: 10px; }
+  .brand-title { font-size: 14.5px; font-weight: 700; color: #f8fafc; line-height: 1.2; }
+  .brand-sub   { font-size: 10.5px; color: #94a3b8; }
+
+  .kpi-strip { display: flex; align-items: center; gap: 8px; }
+  .kpi-box {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 4px 12px;
+    text-align: center;
+    min-width: 118px;
+  }
+  .kpi-box.cyan  { border-top: 3px solid #38bdf8; }
+  .kpi-box.red   { border-top: 3px solid #ef4444; }
+  .kpi-box.amber { border-top: 3px solid #f59e0b; }
+  .kpi-lbl { font-size: 9.5px; font-weight: 700; color: #94a3b8; letter-spacing: 0.4px; text-transform: uppercase; }
+  .kpi-val { font-size: 14px; font-weight: 800; color: #ffffff; margin-top: 1px; }
+
+  .hdr-btn {
+    background: #1e293b;
+    color: #f8fafc;
+    border: 1px solid #475569;
+    border-radius: 7px;
+    padding: 6px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .hdr-btn:hover { background: #334155; border-color: #38bdf8; }
+  .hdr-btn.primary { background: #0284c7; border-color: #38bdf8; }
+
+  /* 3. Reposition Map & Right Filter Sidebar Below Header */
+  #map {
+    position: fixed !important;
+    top: 62px !important;
+    bottom: 0 !important;
+    left: 310px !important;
+    right: 250px !important;
+    width: auto !important;
+    height: auto !important;
+    transition: left 0.2s ease, right 0.2s ease;
+  }
+  body.left-collapsed #map  { left: 0 !important; }
+  body.right-collapsed #map { right: 0 !important; }
+
+  #menu {
+    position: fixed !important;
+    top: 62px !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 250px !important;
+    height: auto !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+    color: #e2e8f0 !important;
+    border-left: 1px solid #334155 !important;
+    z-index: 2500 !important;
+    overflow-y: auto !important;
+    padding: 10px !important;
+    transition: transform 0.2s ease;
+  }
+  body.right-collapsed #menu { transform: translateX(100%); }
+  #menu select {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border: 1px solid #475569 !important;
+    border-radius: 6px !important;
+    width: 100% !important;
+  }
+  .filterlabel, .filtervalue { color: #cbd5e1 !important; font-size: 11.5px !important; }
+
+  /* 4. Left Analytics Sidebar */
+  #nh48-left-sidebar {
+    position: fixed;
+    top: 62px; left: 0; bottom: 0;
+    width: 310px;
+    background: rgba(15, 23, 42, 0.96);
+    border-right: 1px solid #334155;
+    z-index: 2500;
+    padding: 10px 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 0.2s ease;
+  }
+  body.left-collapsed #nh48-left-sidebar { transform: translateX(-100%); }
+
+  .side-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    padding: 10px;
+  }
+  .side-card-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #38bdf8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .hotspot-jump-select {
+    width: 100%;
+    background: #0f172a;
+    color: #f8fafc;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  /* 5. Floating Glass Panels on Map */
+  .glass-float {
+    position: fixed;
+    z-index: 2600;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+    color: #f8fafc;
+  }
+
+  /* Top-Left Layer Toggle Box (Tracks left sidebar state) */
+  #custom-layer-control {
+    top: 74px;
+    left: 364px;
+    border-radius: 10px;
+    padding: 10px 13px;
+    font-size: 12px;
+    min-width: 205px;
+    transition: left 0.2s ease;
+  }
+  body.left-collapsed #custom-layer-control { left: 54px; }
+
+  .layer-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; cursor: pointer; }
+  .layer-row input { accent-color: #38bdf8; width: 14px; height: 14px; cursor: pointer; }
+
+  /* Lower-Left Legend Card (Tracks left sidebar state) */
+  #injury-legend-box {
+    bottom: 16px;
+    left: 322px;
+    border-radius: 10px;
+    padding: 10px 13px;
+    font-size: 11.5px;
+    min-width: 195px;
+    transition: left 0.2s ease;
+  }
+  body.left-collapsed #injury-legend-box { left: 14px; }
+
+  .thermal-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(254,240,217,0.25) 0%, #fdcc8a 35%, #fc8d59 68%, #d7301f 100%);
+    border: 1px solid rgba(255,255,255,0.25);
+    margin: 5px 0 3px 0;
+  }
+  .thermal-ticks { display: flex; justify-content: space-between; font-size: 9.5px; color: #94a3b8; margin-bottom: 8px; }
+  .leg-item { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+  .leg-dot  { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid rgba(255,255,255,0.4); }
+
+  /* Bottom-Center Basemap Switcher (No OSM) */
+  #bottom-basemap-bar {
+    bottom: 16px;
+    left: 53%;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    padding: 5px 9px;
+    display: flex;
+    gap: 5px;
+  }
+  .map-pill {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #cbd5e1;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 11px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .map-pill:hover { color: #fff; background: rgba(56,189,248,0.18); }
+  .map-pill.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+  /* 6. Custom Dark Telemetry Popups */
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: rgba(15, 23, 42, 0.94) !important;
+    color: #f8fafc !important;
+    border: 1px solid #38bdf8 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.65) !important;
+  }
+  .leaflet-popup-content { margin: 11px 13px !important; min-width: 220px !important; }
+  .pop-hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 5px; margin-bottom: 7px; font-weight: 700; color: #38bdf8; font-size: 12px; }
+  .pop-badge { padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .b-fatal    { background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid #ef4444; }
+  .b-grievous { background: rgba(249,115,22,0.25); color: #fdba74; border: 1px solid #f97316; }
+  .b-minor    { background: rgba(234,179,8,0.22); color: #fde047; border: 1px solid #eab308; }
+  .b-none     { background: rgba(56,189,248,0.22); color: #7dd3fc; border: 1px solid #38bdf8; }
+  .pop-grid { display: grid; grid-template-columns: 92px 1fr; row-gap: 4px; font-size: 11.5px; }
+  .pop-k { color: #94a3b8; }
+  .pop-v { color: #f1f5f9; font-weight: 600; text-align: right; }
+</style>
+
+<!-- TOP HEADER BAR -->
+<header id="nh48-header">
+  <div class="brand-group">
+    <button class="hdr-btn" id="toggleLeftBtn">☰ Analytics</button>
+    <div>
+      <div class="brand-title">NH-48 Gujarat Road Safety Intelligence</div>
+      <div class="brand-sub">Multi-Factor Spatial Blackspot Audit | MoRTH & IRC:131</div>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-box cyan"><div class="kpi-lbl">Valid Crashes</div><div class="kpi-val" id="kpi-crashes">2,644</div></div>
+    <div class="kpi-box red"><div class="kpi-lbl">Fatalities</div><div class="kpi-val" id="kpi-fatal">1,475</div></div>
+    <div class="kpi-box cyan"><div class="kpi-lbl">Blackspots (500m)</div><div class="kpi-val">112</div></div>
+    <div class="kpi-box red"><div class="kpi-lbl">Worst Cluster</div><div class="kpi-val">Surat Rural (92)</div></div>
+    <div class="kpi-box amber"><div class="kpi-lbl">Top Mechanism</div><div class="kpi-val">Rear-End (37%)</div></div>
+  </div>
+
+  <div class="brand-group">
+    <button class="hdr-btn" id="resetViewBtn">Reset View</button>
+    <button class="hdr-btn primary" id="exportCsvBtn">⬇ CSV</button>
+    <button class="hdr-btn" id="toggleRightBtn">⚙ Filters</button>
+  </div>
+</header>
+
+<!-- LEFT ANALYTICS SIDEBAR -->
+<aside id="nh48-left-sidebar">
+  <div class="side-card">
+    <div class="side-card-title">Jump to Priority Blackspot</div>
+    <select id="hotspotJumpSelect" class="hotspot-jump-select">
+      <option value="22.25,72.95,8">-- Full Gujarat NH-48 Corridor --</option>
+      <option value="21.1702,72.9311,13">1. Surat Rural / Kamrej Corridor (92 Crashes)</option>
+      <option value="21.7051,72.9959,13">2. Bharuch / Narmada Bridge Approach (68 Crashes)</option>
+      <option value="22.3072,73.1812,13">3. Vadodara Bypass / Dumad Junction (54 Crashes)</option>
+      <option value="20.6100,72.9260,13">4. Valsad / Vapi Industrial Stretch (49 Crashes)</option>
+      <option value="22.9734,72.6565,13">5. Ahmedabad Ring Road / Aslali (44 Crashes)</option>
+    </select>
+  </div>
+
+  <div class="side-card">
+    <div class="side-card-title">Collision Mechanism Distribution</div>
+    <canvas id="mechChartCanvas" height="155"></canvas>
+  </div>
+
+  <div class="side-card">
+    <div class="side-card-title">Top Blackspot Districts</div>
+    <canvas id="distChartCanvas" height="165"></canvas>
+  </div>
+</aside>
+
+<!-- TOP-LEFT LAYER TOGGLE & OPACITY CARD -->
+<div id="custom-layer-control" class="glass-float">
+  <div class="side-card-title">Map Layers</div>
+  <label class="layer-row"><input type="checkbox" id="chk-heatmap" checked><span>Final Heatmap</span></label>
+  <label class="layer-row"><input type="checkbox" id="chk-blackspot" checked><span>Blackspot Centroids</span></label>
+  <label class="layer-row"><input type="checkbox" id="chk-injuries"><span>Injury Severity Crashes</span></label>
+  <div style="margin-top:7px; padding-top:7px; border-top:1px solid #334155; font-size:11px; color:#94a3b8;">
+    <div style="display:flex; justify-content:space-between;"><span>Heatmap Opacity</span><span id="opacTxt">85%</span></div>
+    <input type="range" id="opacSlider" min="15" max="100" value="85" style="width:100%; accent-color:#38bdf8; cursor:pointer;">
+  </div>
+</div>
+
+<!-- LOWER-LEFT LEGEND CARD -->
+<div id="injury-legend-box" class="glass-float">
+  <div class="side-card-title">Weighted Crash Density</div>
+  <div class="thermal-bar"></div>
+  <div class="thermal-ticks"><span>Low</span><span>Moderate</span><span>High</span><span>Critical</span></div>
+
+  <div class="side-card-title">Injury Severity</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#dc2626;"></span> Fatal</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#f97316;"></span> Grievous Injury</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#eab308;"></span> Minor - Hospitalized</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#84cc16;"></span> Minor - Not Hospitalized</div>
+  <div class="leg-item"><span class="leg-dot" style="background:#38bdf8;"></span> No Injury</div>
+</div>
+
+<!-- BOTTOM BASEMAP SWITCHER (NO OSM) -->
+<div id="bottom-basemap-bar" class="glass-float">
+  <button class="map-pill active" data-map="dark">Dark Theme</button>
+  <button class="map-pill" data-map="esriSat">ESRI Satellite</button>
+  <button class="map-pill" data-map="googleSat">Google Satellite</button>
+</div>
+
+<script>
+  (function () {
+    // 1. Sidebar Collapse & Corridor Jump Controls
+    document.getElementById('toggleLeftBtn').addEventListener('click', function () {
+      document.body.classList.toggle('left-collapsed');
+      setTimeout(function () { if (typeof map !== 'undefined') map.invalidateSize(); }, 220);
+    });
+    document.getElementById('toggleRightBtn').addEventListener('click', function () {
+      document.body.classList.toggle('right-collapsed');
+      setTimeout(function () { if (typeof map !== 'undefined') map.invalidateSize(); }, 220);
+    });
+    document.getElementById('resetViewBtn').addEventListener('click', function () {
+      if (typeof map !== 'undefined') map.setView([22.25, 72.95], 8);
+    });
+    document.getElementById('hotspotJumpSelect').addEventListener('change', function (e) {
+      var parts = e.target.value.split(',').map(Number);
+      if (typeof map !== 'undefined' && parts.length === 3) {
+        map.flyTo([parts[0], parts[1]], parts[2], { duration: 1.1 });
+      }
+    });
+
+    // 2. Basemap Switcher (Dark Theme Default, No OSM)
+    var baseLayers = {
+      dark: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 22, maxNativeZoom: 16, attribution: 'Tiles &copy; Esri'
+      }),
+      esriSat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 22, maxNativeZoom: 18, attribution: 'Tiles &copy; Esri'
+      }),
+      googleSat: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 22, attribution: 'Map data &copy; Google'
+      })
+    };
+
+    var activeBase = baseLayers.dark;
+    if (typeof map !== 'undefined') {
+      map.eachLayer(function (l) { if (l instanceof L.TileLayer) map.removeLayer(l); });
+      activeBase.addTo(map);
+      activeBase.bringToBack();
+      L.control.scale({ imperial: false, metric: true, position: 'bottomright' }).addTo(map);
+      setTimeout(function () { map.invalidateSize(); }, 250);
+    }
+
+    document.querySelectorAll('.map-pill').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var key = btn.getAttribute('data-map');
+        if (!baseLayers[key] || typeof map === 'undefined') return;
+        map.removeLayer(activeBase);
+        activeBase = baseLayers[key];
+        activeBase.addTo(map);
+        activeBase.bringToBack();
+        document.querySelectorAll('.map-pill').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+    });
+
+    // 3. Auto-Bind Overlay Layers & Opacity Slider
+    function getQgisLayer(word) {
+      for (var k in window) {
+        if (k.startsWith('layer_') && k.toLowerCase().includes(word)) return window[k];
+      }
+      return null;
+    }
+    var heatLyr = getQgisLayer('heatmap');
+    var spotLyr = getQgisLayer('blackspot');
+    var injLyr  = getQgisLayer('injury');
+
+    function wireCheckbox(id, lyr) {
+      var cb = document.getElementById(id);
+      if (!cb || !lyr || typeof map === 'undefined') return;
+      if (cb.checked && !map.hasLayer(lyr)) map.addLayer(lyr);
+      if (!cb.checked && map.hasLayer(lyr)) map.removeLayer(lyr);
+      cb.addEventListener('change', function () {
+        if (cb.checked) map.addLayer(lyr);
+        else map.removeLayer(lyr);
+      });
+    }
+    wireCheckbox('chk-heatmap', heatLyr);
+    wireCheckbox('chk-blackspot', spotLyr);
+    wireCheckbox('chk-injuries', injLyr);
+
+    document.getElementById('opacSlider').addEventListener('input', function (e) {
+      document.getElementById('opacTxt').textContent = e.target.value + '%';
+      if (heatLyr && heatLyr.setOpacity) heatLyr.setOpacity(Number(e.target.value) / 100);
+    });
+
+    // 4. Chart.js Analytics + Live Filter Synchronization
+    var mechChart = new Chart(document.getElementById('mechChartCanvas'), {
+      type: 'bar',
+      data: {
+        labels: ['Rear-End', 'Sideswipe', 'Head-On', 'Run-Off', 'Parked'],
+        datasets: [{ data: [978, 740, 476, 265, 185], backgroundColor: ['#f59e0b', '#8b5cf6', '#ef4444', '#10b981', '#3b82f6'], borderRadius: 4 }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#cbd5e1', font: { size: 9.5 } }, grid: { display: false } },
+          y: { ticks: { color: '#94a3b8', font: { size: 9.5 } }, grid: { color: '#334155' } }
+        }
+      }
+    });
+
+    var distChart = new Chart(document.getElementById('distChartCanvas'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Surat Rural', 'Bharuch', 'Vadodara', 'Valsad', 'Anand/Other'],
+        datasets: [{ data: [34, 24, 19, 13, 10], backgroundColor: ['#ef4444', '#f97316', '#eab308', '#38bdf8', '#64748b'], borderColor: '#1e293b', borderWidth: 2 }]
+      },
+      options: {
+        plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', font: { size: 10.5 }, boxWidth: 11 } } }
+      }
+    });
+
+    function updateDashboardFromMap() {
+      var m = { 'Rear-End': 0, 'Sideswipe': 0, 'Head-On': 0, 'Run-Off': 0, 'Parked': 0 };
+      var d = { 'Surat Rural': 0, 'Bharuch': 0, 'Vadodara': 0, 'Valsad': 0, 'Anand/Other': 0 };
+      var total = 0;
+
+      if (typeof map !== 'undefined') {
+        map.eachLayer(function (layer) {
+          if (layer.feature && layer.feature.properties) {
+            var p = layer.feature.properties;
+            var w = p.CLUSTER_SIZE ? Number(p.CLUSTER_SIZE) : 1;
+            total += w;
+
+            var nat = String(p.C_Collision_Nature || '').toLowerCase();
+            if (nat.includes('rear')) m['Rear-End'] += w;
+            else if (nat.includes('side')) m['Sideswipe'] += w;
+            else if (nat.includes('head')) m['Head-On'] += w;
+            else if (nat.includes('run') || nat.includes('overturn') || nat.includes('skid')) m['Run-Off'] += w;
+            else if (nat.includes('park') || nat.includes('stationary')) m['Parked'] += w;
+
+            var dst = String(p.C_District || p.District || '').toLowerCase();
+            if (dst.includes('surat')) d['Surat Rural'] += w;
+            else if (dst.includes('bharuch')) d['Bharuch'] += w;
+            else if (dst.includes('vadodara')) d['Vadodara'] += w;
+            else if (dst.includes('valsad')) d['Valsad'] += w;
+            else if (dst) d['Anand/Other'] += w;
+          }
+        });
+      }
+
+      if (total > 0) {
+        mechChart.data.datasets[0].data = [m['Rear-End'], m['Sideswipe'], m['Head-On'], m['Run-Off'], m['Parked']];
+        mechChart.update();
+        distChart.data.datasets[0].data = [d['Surat Rural'], d['Bharuch'], d['Vadodara'], d['Valsad'], d['Anand/Other']];
+        distChart.update();
+      }
+    }
+
+    var menuEl = document.getElementById('menu');
+    if (menuEl) {
+      ['change', 'click', 'mouseup'].forEach(function (ev) {
+        menuEl.addEventListener(ev, function () { setTimeout(updateDashboardFromMap, 140); });
+      });
+    }
+
+    // 5. CSV Export & Clean Text / Telemetry Popups
+    document.getElementById('exportCsvBtn').addEventListener('click', function () {
+      var rows = [], headers = null;
+      if (typeof map !== 'undefined') {
+        map.eachLayer(function (layer) {
+          if (layer.feature && layer.feature.properties) {
+            var p = layer.feature.properties;
+            if (!headers) headers = Object.keys(p);
+            rows.push(headers.map(function (h) {
+              var v = (p[h] === null || p[h] === undefined) ? '' : String(p[h]);
+              return '"' + v.replace(/"/g, '""') + '"';
+            }).join(','));
+          }
+        });
+      }
+      if (!rows.length) {
+        alert('Turn on "Blackspot Centroids" or "Injury Severity Crashes" to export visible records.');
+        return;
+      }
+      var a = document.createElement('a');
+      a.href = encodeURI('data:text/csv;charset=utf-8,' + headers.join(',') + '\n' + rows.join('\n'));
+      a.download = 'NH48_Gujarat_Blackspot_Audit.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
+
+    var obs = new MutationObserver(function () {
+      document.querySelectorAll('.leaflet-popup-content').forEach(function (node) {
+        if (node.dataset.done === '1') return;
+        var trs = node.querySelectorAll('tr');
+        if (!trs.length) return;
+        var data = {};
+        trs.forEach(function (tr) {
+          var tds = tr.querySelectorAll('th, td');
+          if (tds.length >= 2) {
+            var k = tds[0].textContent.trim(), v = tds[1].textContent.trim();
+            if (v && v !== 'NaN' && v !== 'null') data[k] = v;
+          }
+        });
+        if (!Object.keys(data).length) return;
+        var sev = (data['C_Severity_Overall'] || data['Severity'] || 'Blackspot Audit').replace(/\uFFFD|♦/g, ' - ').replace('Gnevous', 'Grievous');
+        var cls = /fatal/i.test(sev) ? 'b-fatal' : /grievous/i.test(sev) ? 'b-grievous' : /minor/i.test(sev) ? 'b-minor' : 'b-none';
+        var dist = data['C_District'] || data['District'] || 'NH-48 Corridor';
+        var nat = (data['C_Collision_Nature'] || 'Multiple / Cluster').replace(/\uFFFD|♦/g, ' - ');
+        var typ = (data['C_Collision_Type'] || '—').replace(/\uFFFD|♦/g, ' - ');
+        var sz  = data['CLUSTER_SIZE'] ? data['CLUSTER_SIZE'] + ' Crashes' : null;
+
+        node.dataset.done = '1';
+        node.innerHTML =
+          '<div class="pop-hdr"><span>' + dist + '</span><span class="pop-badge ' + cls + '">' + sev + '</span></div>' +
+          '<div class="pop-grid">' +
+            (sz ? '<span class="pop-k">Cluster Size</span><span class="pop-v">' + sz + '</span>' : '') +
+            '<span class="pop-k">Mechanism</span><span class="pop-v">' + nat + '</span>' +
+            '<span class="pop-k">Collision Type</span><span class="pop-v">' + typ + '</span>' +
+          '</div>';
+      });
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+
+    document.querySelectorAll('#menu select option').forEach(function (opt) {
+      if (opt.textContent.trim() === 'NaN') opt.remove();
+      else opt.textContent = opt.textContent.replace(/\uFFFD|♦/g, ' - ').replace('Gnevous', 'Grievous');
+    });
+  })();
+</script>       
+    </body>
+</html>
